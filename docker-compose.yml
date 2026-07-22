@@ -16,6 +16,8 @@ services:
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_PASSWORD}
       - MYSQL_DATABASE=${MYSQL_DB}
+    networks:
+      - smart-finance-ai-network
 
 # docker compose up -d ml-service
   ml-service:
@@ -27,9 +29,9 @@ services:
       - "8000:8000"
     environment:
       - PORT=8000
-      - OCI_STORAGE_BUCKET=finance-ai-bucket
+      - OCI_STORAGE_BUCKET=smart-finance-ai-bucket
     networks:
-      - finance-network
+      - smart-finance-ai-network
 
 # docker compose up -d backend-service
   backend-service:
