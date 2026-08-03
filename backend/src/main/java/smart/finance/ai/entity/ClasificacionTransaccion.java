@@ -16,15 +16,15 @@ public class ClasificacionTransaccion {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
-    private Long id;
-
-    @Column(name = "probabilidad", nullable = false, precision = 5, scale = 4)
-    private BigDecimal probabilidad;
+    @Column(name = "id_clasificacion_transaccion")
+    private Integer id;
 
     @OneToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "fk id_analisis_financiero", nullable = false, unique = true)
+    @JoinColumn(name = "id_analisis_financiero", nullable = false, unique = true)
     private AnalisisFinanciero analisisFinanciero;
+
+    @Column(name = "probabilidad", nullable = false, precision = 4, scale = 3)
+    private BigDecimal probabilidad;
 
     @OneToMany(mappedBy = "clasificacionTransaccion", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

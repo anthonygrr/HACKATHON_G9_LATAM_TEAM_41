@@ -15,22 +15,22 @@ public class AnalisisFinanciero {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
-    private Long id;
+    @Column(name = "id_analisis_financiero")
+    private Integer id;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "id_usuario", nullable = false)
+    private Usuario usuario;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "id_salud_financiera", nullable = false)
+    private SaludFinanciera saludFinanciera;
 
     @Column(name = "mes", nullable = false)
     private Integer mes;
 
-    @Column(name = "ano", nullable = false)
-    private Integer ano;
-
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "fk id_usuario", nullable = false)
-    private Usuario usuario;
-
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "fk id_salud_financiera", nullable = false)
-    private SaludFinanciera saludFinanciera;
+    @Column(name = "anio", nullable = false)
+    private Integer anio;
 
     @Column(name = "fecha_generacion", nullable = false)
     private LocalDateTime fechaGeneracion;

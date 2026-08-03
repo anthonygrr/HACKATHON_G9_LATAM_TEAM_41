@@ -11,10 +11,9 @@ import lombok.*;
 public class TipoTransaccion {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "ID_tipo_transaccion")
-    private Long idTipoTransaccion;
+    @Column(name = "id_tipo_transaccion")
+    private Integer id;
 
-    @Column(name = "nombre", nullable = false, length = 50)
+    @Column(name = "nombre", nullable = false, unique = true, length = 20)
     private String nombre;
 }
