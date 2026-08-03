@@ -23,13 +23,13 @@ public class UsuarioServiceImpl implements UsuarioService {
     public Usuario findUserByJwtToken(String jwt) {
         String email = jwtProvider.getEmailFromJwtToken(jwt);
         return userRepository.findByCorreo(email)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
+                .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado: " + email));
     }
 
     @Override
     public Usuario findUserByEmail(String email) {
         return userRepository.findByCorreo(email)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
+                .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado: " + email));
     }
 }
 

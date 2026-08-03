@@ -15,6 +15,7 @@ import smart.finance.ai.dto.request.SignupRequest;
 import smart.finance.ai.dto.response.AuthResponse;
 import smart.finance.ai.entity.Rol;
 import smart.finance.ai.entity.Usuario;
+import smart.finance.ai.exception.DuplicateEmailException;
 import smart.finance.ai.repository.RolRepository;
 import smart.finance.ai.repository.UsuarioRepository;
 
@@ -35,11 +36,11 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public AuthResponse signup(SignupRequest request) {
         if (userRepository.findByCorreo(request.correo()).isPresent()) {
-            throw new RuntimeException("Email is already used with another account");
+            throw new DuplicateEmailException("El correo ya esta en uso");
         }
 
         Rol defaultRole = rolRepository.findById(DEFAULT_ROLE_ID)
-                .orElseThrow(() -> new RuntimeException("Default role not found"));
+                .orElseThrow(() -> new RuntimeException("No se encontro el Rol"));
 
         Usuario user = Usuario.builder()
                 .nombre(request.nombre())
@@ -57,7 +58,7 @@ public class AuthServiceImpl implements AuthService {
 
         return AuthResponse.builder()
                 .jwt(jwt)
-                .message("Register success")
+                .message("Registro exitoso")
                 .rol(savedUser.getRol().getNombre())
                 .build();
     }
@@ -67,7 +68,7 @@ public class AuthServiceImpl implements AuthService {
         UserDetails userDetails = customUserDetailsService.loadUserByUsername(request.correo());
 
         if (!passwordEncoder.matches(request.contrasena(), userDetails.getPassword())) {
-            throw new BadCredentialsException("Invalid username or password");
+            throw new BadCredentialsException("Usuario o contraseña incorrectos");
         }
 
         Authentication authentication = new UsernamePasswordAuthenticationToken(
@@ -81,7 +82,7 @@ public class AuthServiceImpl implements AuthService {
 
         return AuthResponse.builder()
                 .jwt(jwt)
-                .message("Login success")
+                .message("Inicio de sesion exitoso")
                 .rol(role)
                 .build();
     }
