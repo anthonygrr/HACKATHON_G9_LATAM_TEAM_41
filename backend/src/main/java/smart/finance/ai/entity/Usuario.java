@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "USUARIO")
+@Table(name = "usuario")
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor
 @Builder
@@ -16,31 +16,30 @@ public class Usuario {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "ID")
-    private Long id;
+    @Column(name = "id_usuario")
+    private Integer id;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "id_rol", nullable = false)
+    private Rol rol;
 
     @Column(name = "nombre", nullable = false, length = 100)
     private String nombre;
 
-    @Column(name = "apellido paterno", nullable = false, length = 100)
+    @Column(name = "apellido_paterno", nullable = false, length = 100)
     private String apellidoPaterno;
 
-    @Column(name = "apellido materno", length = 100)
+    @Column(name = "apellido_materno", length = 100)
     private String apellidoMaterno;
 
-    @Column(name = "Fecha de nacimiento")
+    @Column(name = "fecha_nacimiento")
     private LocalDate fechaNacimiento;
 
-    @Column(name = "Correo", nullable = false, unique = true, length = 150)
+    @Column(name = "correo", nullable = false, unique = true, length = 255)
     private String correo;
 
-    @Column(name = "contraseña", nullable = false, length = 255)
+    @Column(name = "contrasena_hash", nullable = false, length = 255)
     private String contrasena;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "rol", nullable = false, length = 20)
-    @Builder.Default
-    private Rol rol = Rol.ROLE_USER;
 
     @OneToMany(mappedBy = "usuario", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

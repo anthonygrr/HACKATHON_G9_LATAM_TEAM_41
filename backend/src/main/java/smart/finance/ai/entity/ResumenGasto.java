@@ -13,17 +13,17 @@ public class ResumenGasto {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
-    private Long id;
+    @Column(name = "id_resumen_gasto")
+    private Integer id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "fk id_categoria_gasto", nullable = false)
+    @JoinColumn(name = "id_clasificacion_transaccion", nullable = false)
+    private ClasificacionTransaccion clasificacionTransaccion;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "id_categoria_gasto", nullable = false)
     private CategoriaGasto categoriaGasto;
 
-    @Column(name = "monto", nullable = false, precision = 15, scale = 2)
-    private BigDecimal monto;
-
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "fk id_clasificacion_transaccion", nullable = false)
-    private ClasificacionTransaccion clasificacionTransaccion;
+    @Column(name = "monto_total", nullable = false, precision = 12, scale = 2)
+    private BigDecimal montoTotal;
 }

@@ -3,7 +3,7 @@ CREATE TABLE rol (
     nombre VARCHAR(20) NOT NULL,
     CONSTRAINT pk_rol PRIMARY KEY (id_rol),
     CONSTRAINT uq_rol_nombre UNIQUE (nombre),
-    CONSTRAINT chk_rol_nombre CHECK (nombre IN ('ADMIN' , 'USER'))
+    CONSTRAINT chk_rol_nombre CHECK (nombre IN ('ROLE_ADMIN' , 'ROLE_USER'))
 )  ENGINE=INNODB DEFAULT CHARSET=UTF8MB4 COLLATE = UTF8MB4_UNICODE_CI;
 
 CREATE TABLE usuario (
@@ -75,8 +75,8 @@ CREATE TABLE analisis_financiero (
     id_analisis_financiero INT NOT NULL AUTO_INCREMENT,
     id_usuario INT NOT NULL,
     id_salud_financiera INT NOT NULL,
-    mes TINYINT NOT NULL,
-    anio SMALLINT NOT NULL,
+    mes INTEGER NOT NULL,
+    anio INTEGER NOT NULL,
     fecha_generacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_analisis_financiero PRIMARY KEY (id_analisis_financiero),
     CONSTRAINT chk_analisis_mes CHECK (mes BETWEEN 1 AND 12),

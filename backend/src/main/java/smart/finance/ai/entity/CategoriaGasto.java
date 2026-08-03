@@ -12,9 +12,9 @@ public class CategoriaGasto {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
-    private Long id;
+    @Column(name = "id_categoria_gasto")
+    private Integer id;
 
-    @Column(name = "nombre", nullable = false, length = 50)
+    @Column(name = "nombre", nullable = false, unique = true, length = 100)
     private String nombre;
 }

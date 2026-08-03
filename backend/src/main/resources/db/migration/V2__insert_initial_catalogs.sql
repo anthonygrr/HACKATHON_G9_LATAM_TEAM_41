@@ -1,6 +1,6 @@
 INSERT INTO rol (id_rol, nombre) VALUES
-    (1, 'ADMIN'),
-    (2, 'USER');
+    (1, 'ROLE_ADMIN'),
+    (2, 'ROLE_USER');
 
 INSERT INTO tipo_transaccion (id_tipo_transaccion, nombre) VALUES
     (1, 'INGRESO'),

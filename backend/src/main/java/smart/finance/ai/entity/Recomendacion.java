@@ -12,13 +12,13 @@ public class Recomendacion {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
-    private Long id;
-
-    @Column(name = "descripcion", nullable = false, columnDefinition = "TEXT")
-    private String descripcion;
+    @Column(name = "id_recomendacion")
+    private Integer id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "fk id_analisis_financiero", nullable = false)
+    @JoinColumn(name = "id_analisis_financiero", nullable = false)
     private AnalisisFinanciero analisisFinanciero;
+
+    @Column(name = "descripcion", nullable = false, length = 500)
+    private String descripcion;
 }

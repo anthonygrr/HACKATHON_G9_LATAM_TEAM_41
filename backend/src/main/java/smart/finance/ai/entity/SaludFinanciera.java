@@ -12,9 +12,9 @@ public class SaludFinanciera {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
-    private Long id;
+    @Column(name = "id_salud_financiera")
+    private Integer id;
 
-    @Column(name = "tipo", nullable = false, length = 50)
-    private String tipo;
+    @Column(name = "nombre", nullable = false, unique = true, length = 50)
+    private String nombre;
 }
