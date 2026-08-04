@@ -1,0 +1,17 @@
+package smart.finance.ai.dto.response;
+
+import lombok.Builder;
+import lombok.Data;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
+@Data
+@Builder
+public class TransaccionResponseDTO {
+    private Integer id;
+    private String descripcion;
+    private BigDecimal monto;
+    private LocalDate fecha;
+    private String tipoTransaccion;
+    private Integer usuarioId;
+}
