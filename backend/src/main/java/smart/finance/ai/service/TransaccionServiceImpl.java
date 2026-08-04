@@ -23,31 +23,14 @@ public class TransaccionServiceImpl implements TransaccionService {
     private final TransaccionRepository transaccionRepository;
     private final UsuarioRepository usuarioRepository;
     private final TipoTransaccionRepository tipoTransaccionRepository;
-    private final ClasificadorService clasificadorService;
+    private final ClasificacionService clasificacionService;
 
     @Override
     @Transactional
-    public TransaccionResponseDTO crearTransaccion(TransaccionRequestDTO dto) {
-        Usuario usuario = usuarioRepository.findById(dto.getUsuarioId())
-                .orElseThrow(() -> new ResourceNotFoundException("El usuario especificado no existe."));
-
-        Integer tipoId = (dto.getTipoTransaccionId() != null)
-                ? dto.getTipoTransaccionId()
-                : clasificadorService.predecirTipoTransaccion(dto.getDescripcion());
-
-        TipoTransaccion tipoTransaccion = tipoTransaccionRepository.findById(tipoId)
-                .orElseThrow(() -> new ResourceNotFoundException("Tipo de transacción inválido."));
-
-        Transaccion transaccion = Transaccion.builder()
-                .usuario(usuario)
-                .tipoTransaccion(tipoTransaccion)
-                .descripcion(dto.getDescripcion())
-                .monto(dto.getMonto())
-                .fecha(LocalDate.now())
-                .build();
-
-        Transaccion guardada = transaccionRepository.save(transaccion);
-        return mapToDTO(guardada);
+    public List<TransaccionResponseDTO> crearTransacciones(List<TransaccionRequestDTO> dtos) {
+        List<Transaccion> guardadas = transaccionRepository.saveAll(
+                dtos.stream().map(this::buildTransaccion).collect(Collectors.toList()));
+        return guardadas.stream().map(this::mapToDTO).collect(Collectors.toList());
     }
 
     @Override
@@ -82,16 +65,9 @@ public class TransaccionServiceImpl implements TransaccionService {
             transaccion.setUsuario(usuario);
         }
 
-        Integer tipoId = (dto.getTipoTransaccionId() != null)
-                ? dto.getTipoTransaccionId()
-                : clasificadorService.predecirTipoTransaccion(dto.getDescripcion());
-
-        TipoTransaccion tipoTransaccion = tipoTransaccionRepository.findById(tipoId)
-                .orElseThrow(() -> new ResourceNotFoundException("Tipo de transacción inválido."));
-
         transaccion.setDescripcion(dto.getDescripcion());
         transaccion.setMonto(dto.getMonto());
-        transaccion.setTipoTransaccion(tipoTransaccion);
+        transaccion.setTipoTransaccion(resolverTipoTransaccion(dto));
 
         Transaccion actualizada = transaccionRepository.save(transaccion);
         return mapToDTO(actualizada);
@@ -106,14 +82,46 @@ public class TransaccionServiceImpl implements TransaccionService {
         transaccionRepository.deleteById(id);
     }
 
+    private Transaccion buildTransaccion(TransaccionRequestDTO dto) {
+        Usuario usuario = usuarioRepository.findById(dto.getUsuarioId())
+                .orElseThrow(() -> new ResourceNotFoundException("El usuario especificado no existe."));
+
+        return Transaccion.builder()
+                .usuario(usuario)
+                .tipoTransaccion(resolverTipoTransaccion(dto))
+                .descripcion(dto.getDescripcion())
+                .monto(dto.getMonto())
+                .fecha(LocalDate.now())
+                .build();
+    }
+
+    private TipoTransaccion resolverTipoTransaccion(TransaccionRequestDTO dto) {
+        Integer tipoId = (dto.getTipoTransaccionId() != null)
+                ? dto.getTipoTransaccionId()
+                : clasificacionService.predecirTipoTransaccion(dto.getDescripcion());
+
+        return tipoTransaccionRepository.findById(tipoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tipo de transacción inválido."));
+    }
+
     private TransaccionResponseDTO mapToDTO(Transaccion t) {
+        TransaccionResponseDTO clasificacion =
+                clasificacionService.clasificarConProbabilidad(t.getDescripcion());
+        Usuario usuario = t.getUsuario();
+
         return TransaccionResponseDTO.builder()
                 .id(t.getId())
                 .descripcion(t.getDescripcion())
+                .categoria(clasificacion.getCategoria())
+                .idCategoria(clasificacion.getIdCategoria())
                 .monto(t.getMonto())
                 .fecha(t.getFecha())
                 .tipoTransaccion(t.getTipoTransaccion().getNombre())
-                .usuarioId(t.getUsuario().getId())
+                .probabilidad(clasificacion.getProbabilidad())
+                .usuarioId(usuario.getId())
+                .nombre(usuario.getNombre())
+                .apellidoPaterno(usuario.getApellidoPaterno())
+                .correo(usuario.getCorreo())
                 .build();
     }
 
