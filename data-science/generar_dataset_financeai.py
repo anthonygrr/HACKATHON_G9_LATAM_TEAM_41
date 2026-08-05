@@ -44,44 +44,44 @@ CATEGORIAS = {
     },
     "Transporte": {
         "comercios": ["Combustible Terpel", "Estacion Servicio Primax", "Cabify",
-                       "TransMilenio", "Gasolinera Pemex", "Uber", "Didi",
-                       "Metrobus CDMX", "Peaje Autopista"],
+                      "TransMilenio", "Gasolinera Pemex", "Uber", "Didi",
+                      "Metrobus CDMX", "Peaje Autopista"],
         "rango_valor": (10, 210),
     },
     "Salud": {
         "comercios": ["Farmacia Cruz Verde", "Farmatodo", "EPS Sura Copago",
-                       "Coomeva Medicina Prepagada", "Farmacias del Ahorro",
-                       "Farmacias Guadalajara", "Farmacias Similares", "Consultorio IMSS"],
+                      "Coomeva Medicina Prepagada", "Farmacias del Ahorro",
+                      "Farmacias Guadalajara", "Farmacias Similares", "Consultorio IMSS"],
         "rango_valor": (15, 300),
     },
     "Vivienda": {
         "comercios": ["Arriendo Apartamento", "Administracion Conjunto Residencial",
-                       "Homecenter", "Renta Departamento", "Administracion Condominio",
-                       "Home Depot Mexico", "Pago Infonavit"],
+                      "Homecenter", "Renta Departamento", "Administracion Condominio",
+                      "Home Depot Mexico", "Pago Infonavit"],
         "rango_valor": (150, 650),
     },
     "Educacion": {
         "comercios": ["Matricula Universidad Nacional", "Icetex Credito Educativo",
-                       "Platzi Curso Online", "Matricula UNAM",
-                       "Colegiatura Colegio Privado", "Coursera Curso Online"],
+                      "Platzi Curso Online", "Matricula UNAM",
+                      "Colegiatura Colegio Privado", "Coursera Curso Online"],
         "rango_valor": (25, 400),
     },
     "Ocio": {
         "comercios": ["Netflix", "Spotify Premium", "Disney Plus", "Cine Colombia",
-                       "Cinepolis", "Steam Videojuegos", "Bar Restaurante Amigos",
-                       "Agencia de Viajes"],
+                      "Cinepolis", "Steam Videojuegos", "Bar Restaurante Amigos",
+                      "Agencia de Viajes"],
         "rango_valor": (5, 130),
     },
     "Servicios": {
         "comercios": ["Factura Energia Enel Codensa", "Factura Acueducto",
-                       "Claro Hogar Internet", "Movistar Plan Celular", "Factura CFE",
-                       "Telmex Internet Hogar", "Telcel Plan Celular", "Izzi Telecom"],
+                      "Claro Hogar Internet", "Movistar Plan Celular", "Factura CFE",
+                      "Telmex Internet Hogar", "Telcel Plan Celular", "Izzi Telecom"],
         "rango_valor": (15, 150),
     },
     "Otros": {
         "comercios": ["Retiro Cajero Automatico", "Transferencia Nequi", "Daviplata",
-                       "Pago Multa Transito", "Transferencia Mercado Pago",
-                       "Recarga OXXO", "Deposito Banco Azteca"],
+                      "Pago Multa Transito", "Transferencia Mercado Pago",
+                      "Recarga OXXO", "Deposito Banco Azteca"],
         "rango_valor": (10, 180),
     },
 }
@@ -105,21 +105,70 @@ PESOS_CATEGORIA = {
 _CATS = list(PESOS_CATEGORIA.keys())
 _PESOS = list(PESOS_CATEGORIA.values())
 
+# ------------------------------------------------------------------
+# Ambiguedad de texto: en la banca real, muchas descripciones NO revelan
+# la categoria por si solas ("COMPRA", "PAGO", "TRANSFERENCIA"...). Sin
+# esto, el vocabulario queda cerrado y perfectamente separable por
+# categoria, lo que produce clasificadores con accuracy irrealmente alto
+# (100%). Se agregan descripciones genericas + errores tipograficos
+# ocasionales para que el problema sea un desafio de clasificacion real.
+# ------------------------------------------------------------------
+DESCRIPCIONES_GENERICAS = [
+    "COMPRA", "PAGO", "TRANSFERENCIA", "RETIRO", "SERVICIO",
+    "RECIBO DE PAGO", "COMPRA VARIOS", "PAGO EN LINEA", "TRANSACCION",
+    "ABONO", "CONSUMO", "COBRO AUTOMATICO",
+]
+PROB_DESCRIPCION_GENERICA = 0.12
+PROB_TYPO = 0.10
+
+# RNG dedicado solo a la generacion de texto (independiente de `random`),
+# para que la ambiguedad de texto no altere el orden de los sorteos que
+# ya definen ingreso, endeudamiento, categoria, valor y perfil financiero
+# (mantiene esas distribuciones ya validadas exactamente iguales).
+rng_texto = random.Random(SEED + 100)
+
+
+def introducir_typo(texto):
+    """Simula un error tipografico simple (swap, borrado o duplicado de un
+    caracter), como pasaria en datos reales de banco."""
+    if len(texto) < 4:
+        return texto
+    tipo = rng_texto.choice(["swap", "delete", "duplicate"])
+    pos = rng_texto.randint(0, len(texto) - 2)
+    if tipo == "swap":
+        letras = list(texto)
+        letras[pos], letras[pos + 1] = letras[pos + 1], letras[pos]
+        return "".join(letras)
+    if tipo == "delete":
+        return texto[:pos] + texto[pos + 1:]
+    return texto[:pos] + texto[pos] + texto[pos:]
+
 
 def generar_descripcion_ruidosa(nombre_comercio: str) -> str:
     """Agrega ruido realista (mayusculas, codigos, ciudad) para que la limpieza
-    de texto en el EDA tenga sentido, tal como pasaria con datos reales de banco."""
-    texto = nombre_comercio.upper()
-    if random.random() < 0.5:
-        texto += f" #{random.randint(100, 9999)}"
-    if random.random() < 0.3:
-        ciudad = random.choice([
+    de texto en el EDA tenga sentido, tal como pasaria con datos reales de banco.
+    Ademas, con cierta probabilidad reemplaza el nombre del comercio por una
+    descripcion generica (COMPRA, PAGO, etc.) que no revela la categoria por
+    si sola, y ocasionalmente introduce un error tipografico — esto evita que
+    el vocabulario quede perfectamente separado por categoria."""
+    es_generica = rng_texto.random() < PROB_DESCRIPCION_GENERICA
+    base = rng_texto.choice(DESCRIPCIONES_GENERICAS) if es_generica else nombre_comercio
+
+    texto = base.upper()
+    if rng_texto.random() < 0.5:
+        texto += f" #{rng_texto.randint(100, 9999)}"
+    if rng_texto.random() < 0.3:
+        ciudad = rng_texto.choice([
             "BOGOTA", "MEDELLIN", "CALI", "CUCUTA", "BARRANQUILLA", "CARTAGENA",
             "CIUDAD DE MEXICO", "GUADALAJARA", "MONTERREY", "PUEBLA", "TIJUANA", "QUERETARO",
         ])
         texto += f" {ciudad}"
-    if random.random() < 0.2:
-        texto += f" REF{random.randint(100000, 999999)}"
+    if rng_texto.random() < 0.2:
+        texto += f" REF{rng_texto.randint(100000, 999999)}"
+
+    if not es_generica and rng_texto.random() < PROB_TYPO:
+        texto = introducir_typo(texto)
+
     return texto
 
 
