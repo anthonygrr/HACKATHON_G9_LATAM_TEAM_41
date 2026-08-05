@@ -1,0 +1,16 @@
+{
+  "modelo": "Linear SVC",
+  "accuracy_test": 0.8984,
+  "f1_macro_test": 0.9101,
+  "categorias": [
+    "Alimentacion",
+    "Educacion",
+    "Ocio",
+    "Otros",
+    "Salud",
+    "Servicios",
+    "Transporte",
+    "Vivienda"
+  ],
+  "vectorizador": "artefactos/tfidf_vectorizer.pkl"
+}

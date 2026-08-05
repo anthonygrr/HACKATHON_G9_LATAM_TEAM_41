@@ -1,0 +1,31 @@
+{
+  "reglas": {
+    "umbral_pct_categoria": {
+      "vivienda": 0.35,
+      "alimentacion": 0.25,
+      "transporte": 0.15,
+      "ocio": 0.1,
+      "servicios": 0.1,
+      "otros": 0.15
+    },
+    "umbral_ratio_alto": 0.9,
+    "umbral_ratio_medio": 0.7,
+    "umbral_endeudamiento_alto": 50,
+    "umbral_endeudamiento_medio": 30,
+    "max_recomendaciones": 4
+  },
+  "nombres_categoria_display": {
+    "vivienda": "vivienda",
+    "alimentacion": "alimentacion",
+    "transporte": "transporte",
+    "ocio": "ocio y entretenimiento",
+    "servicios": "servicios (facturas, internet, telefonia)",
+    "otros": "gastos varios"
+  },
+  "mensajes_perfil_general": {
+    "Saludable": "Tu perfil financiero es saludable. Manten tus habitos actuales de gasto y ahorro.",
+    "En observacion": "Tu perfil financiero esta en observacion. Pequenos ajustes en tus gastos o en tu frecuencia de ahorro pueden mejorar tu situacion.",
+    "En riesgo": "Tu perfil financiero esta en riesgo. Te recomendamos revisar a fondo tus gastos y buscar reducir tu endeudamiento lo antes posible."
+  },
+  "notas": "Las recomendaciones se generan evaluando cada regla y asignandole una severidad (3=alta, 2=media, 1=informativa). Se ordenan por severidad descendente y se limitan a 'max_recomendaciones' (incluyendo siempre primero el mensaje general del perfil). Salud y Educacion no tienen umbral de alerta por categoria: gastar mas ahi no se considera necesariamente negativo."
+}
