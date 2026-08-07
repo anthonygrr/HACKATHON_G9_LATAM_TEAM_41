@@ -3,13 +3,17 @@ package smart.finance.ai.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import smart.finance.ai.dto.ml.MlAnalisisFinancieroRequest;
+import smart.finance.ai.dto.ml.MlAnalisisFinancieroResponse;
 import smart.finance.ai.dto.request.AnalisisFinancieroRequest;
 import smart.finance.ai.dto.request.TransaccionAnalisisRequest;
 import smart.finance.ai.dto.response.AnalisisFinancieroResponse;
 import smart.finance.ai.dto.response.AnalisisFinancieroResumenResponse;
 import smart.finance.ai.dto.response.ResumenGastoResponse;
+import smart.finance.ai.dto.response.TransaccionResponseDTO;
 import smart.finance.ai.entity.*;
 import smart.finance.ai.repository.*;
+import smart.finance.ai.util.CategoriaGastoMapper;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -32,6 +36,7 @@ public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService 
     private final TipoTransaccionRepository tipoTransaccionRepository;
     private final TransaccionRepository transaccionRepository;
     private final ClasificacionService clasificacionService;
+    private final MlApiClient mlApiClient;
 
     @Override
     @Transactional
@@ -41,6 +46,9 @@ public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService 
 
         AnalisisFinanciero analisis = AnalisisFinanciero.builder()
                 .usuario(usuario)
+                .ingresoMensual(request.ingresoMensual())
+                .nivelEndeudamiento(request.nivelEndeudamiento())
+                .frecuenciaAhorro(request.frecuenciaAhorro())
                 .mes(request.mes())
                 .anio(request.anio())
                 .fechaGeneracion(LocalDateTime.now())
@@ -60,6 +68,9 @@ public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService 
                 .stream()
                 .map(a -> new AnalisisFinancieroResumenResponse(
                         a.getId(),
+                        a.getIngresoMensual(),
+                        a.getNivelEndeudamiento(),
+                        a.getFrecuenciaAhorro(),
                         a.getMes(),
                         a.getAnio(),
                         a.getFechaGeneracion(),
@@ -88,6 +99,9 @@ public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService 
                 .orElseThrow(() -> new NoSuchElementException("Usuario no encontrado: " + request.usuarioId()));
 
         analisis.setUsuario(usuario);
+        analisis.setIngresoMensual(request.ingresoMensual());
+        analisis.setNivelEndeudamiento(request.nivelEndeudamiento());
+        analisis.setFrecuenciaAhorro(request.frecuenciaAhorro());
         analisis.setMes(request.mes());
         analisis.setAnio(request.anio());
         analisis.setFechaGeneracion(LocalDateTime.now());
@@ -115,19 +129,90 @@ public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService 
     private void poblar(AnalisisFinanciero analisis, AnalisisFinancieroRequest request) {
         Usuario usuario = analisis.getUsuario();
 
-        // Clasifica las transacciones y agrupa montos por categoria
+        MlAnalisisFinancieroRequest mlRequest = new MlAnalisisFinancieroRequest(
+                request.ingresoMensual(),
+                request.nivelEndeudamiento(),
+                request.frecuenciaAhorro(),
+                request.transacciones());
+
+        mlApiClient.analizarFinanciero(mlRequest)
+                .filter(respuesta -> respuesta.getPerfilFinanciero() != null)
+                .ifPresentOrElse(
+                        respuesta -> poblarDesdeModelo(analisis, respuesta),
+                        () -> poblarPorRegla(analisis, request));
+
+        // Persistir transacciones recibidas por trazabilidad
+        persistirTransacciones(usuario, request.transacciones());
+    }
+
+    /**
+     * Rellena la entidad a partir del resultado del modelo de data-science.
+     */
+    private void poblarDesdeModelo(AnalisisFinanciero analisis, MlAnalisisFinancieroResponse respuesta) {
+        BigDecimal probabilidad = respuesta.getProbabilidad() == null
+                ? BigDecimal.ZERO
+                : respuesta.getProbabilidad().setScale(3, RoundingMode.HALF_UP);
+
+        ClasificacionTransaccion clasificacion = new ClasificacionTransaccion();
+        clasificacion.setAnalisisFinanciero(analisis);
+        clasificacion.setProbabilidad(probabilidad);
+        clasificacion.setResumenesGasto(new ArrayList<>());
+        analisis.setClasificacionTransaccion(clasificacion);
+
+        if (respuesta.getResumenGastos() != null) {
+            respuesta.getResumenGastos().forEach((slug, monto) -> {
+                Integer idCategoria = CategoriaGastoMapper.idDesdeSlug(slug);
+                if (idCategoria == null) {
+                    return;
+                }
+                CategoriaGasto categoria = categoriaGastoRepository.findById(idCategoria)
+                        .orElseThrow(() -> new NoSuchElementException("Categoria no encontrada: " + idCategoria));
+                ResumenGasto resumen = new ResumenGasto();
+                resumen.setClasificacionTransaccion(clasificacion);
+                resumen.setCategoriaGasto(categoria);
+                resumen.setMontoTotal(monto == null ? BigDecimal.ZERO : monto);
+                clasificacion.getResumenesGasto().add(resumen);
+            });
+        }
+
+        analisis.setSaludFinanciera(derivarSaludFinancieraDesdePerfil(respuesta.getPerfilFinanciero()));
+
+        List<Recomendacion> recomendaciones = (respuesta.getRecomendaciones() == null
+                ? new ArrayList<String>()
+                : respuesta.getRecomendaciones())
+                .stream()
+                .map(texto -> Recomendacion.builder()
+                        .analisisFinanciero(analisis)
+                        .descripcion(texto)
+                        .build())
+                .toList();
+        analisis.setRecomendaciones(recomendaciones);
+    }
+
+    /**
+     * Fallback local cuando el servicio ML no esta disponible: replica la logica
+     * de clasificacion por reglas, perfil derivado de la probabilidad y
+     * recomendaciones genericas (comportamiento previo a la integracion).
+     */
+    private void poblarPorRegla(AnalisisFinanciero analisis, AnalisisFinancieroRequest request) {
         Map<Integer, BigDecimal> porCategoria = new LinkedHashMap<>();
         BigDecimal sumaProbabilidades = BigDecimal.ZERO;
+
+        List<String> descripciones = request.transacciones().stream()
+                .map(TransaccionAnalisisRequest::descripcion)
+                .toList();
+        Map<String, TransaccionResponseDTO> clasificadas =
+                clasificacionService.clasificarConProbabilidadLote(descripciones);
+
         int totalTransacciones = request.transacciones().size();
 
         for (TransaccionAnalisisRequest tx : request.transacciones()) {
-            int idCategoria = clasificacionService.clasificar(tx.descripcion());
+            TransaccionResponseDTO clasificacion = clasificadas.get(tx.descripcion());
+            int idCategoria = clasificacion.getIdCategoria();
             porCategoria.merge(idCategoria, tx.monto(), BigDecimal::add);
-            sumaProbabilidades = sumaProbabilidades.add(
-                    clasificacionService.clasificarConProbabilidad(tx.descripcion()).getProbabilidad());
+            sumaProbabilidades = sumaProbabilidades.add(clasificacion.getProbabilidad());
         }
 
-        // Clasificacion agregada del analisis
         BigDecimal probabilidad = totalTransacciones == 0
                 ? BigDecimal.ZERO
                 : sumaProbabilidades.divide(BigDecimal.valueOf(totalTransacciones), 3, RoundingMode.HALF_UP);
@@ -138,7 +223,6 @@ public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService 
         clasificacion.setResumenesGasto(new ArrayList<>());
         analisis.setClasificacionTransaccion(clasificacion);
 
-        // Resumen de gastos por categoria
         for (Map.Entry<Integer, BigDecimal> entry : porCategoria.entrySet()) {
             CategoriaGasto categoria = categoriaGastoRepository.findById(entry.getKey())
                     .orElseThrow(() -> new NoSuchElementException("Categoria no encontrada: " + entry.getKey()));
@@ -150,13 +234,8 @@ public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService 
             clasificacion.getResumenesGasto().add(resumen);
         }
 
-        // Derivar salud financiera segun la probabilidad de clasificacion
         analisis.setSaludFinanciera(derivarSaludFinanciera(probabilidad));
 
-        // Persistir transacciones recibidas por trazabilidad
-        persistirTransacciones(usuario, request.transacciones());
-
-        // Generar y persistir recomendaciones
         List<Recomendacion> recomendaciones = generarRecomendaciones(clasificacion, analisis)
                 .stream()
                 .map(texto -> Recomendacion.builder()
@@ -165,6 +244,20 @@ public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService 
                         .build())
                 .collect(Collectors.toCollection(ArrayList::new));
         analisis.setRecomendaciones(recomendaciones);
+    }
+
+    /**
+     * Mapea el perfil predicho por el modelo de data-science a la entidad
+     * {@code salud_financiera}. Si el perfil no es reconocido, degrada al
+     * criterio por probabilidad.
+     */
+    private SaludFinanciera derivarSaludFinancieraDesdePerfil(String perfilFinanciero) {
+        Integer id = CategoriaGastoMapper.idSaludFinanciera(perfilFinanciero);
+        if (id == null) {
+            return derivarSaludFinanciera(BigDecimal.ZERO);
+        }
+        return saludFinancieraRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Salud financiera no encontrada: " + id));
     }
 
     private SaludFinanciera derivarSaludFinanciera(BigDecimal probabilidad) {
@@ -245,6 +338,9 @@ public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService 
         return new AnalisisFinancieroResponse(
                 analisis.getId(),
                 analisis.getUsuario().getNombre(),
+                analisis.getIngresoMensual(),
+                analisis.getNivelEndeudamiento(),
+                analisis.getFrecuenciaAhorro(),
                 analisis.getMes(),
                 analisis.getAnio(),
                 analisis.getFechaGeneracion(),

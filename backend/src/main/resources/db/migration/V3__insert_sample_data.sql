@@ -8,7 +8,8 @@ INSERT INTO usuario (
     (5, 2, 'Mariana', 'Sánchez', 'Díaz', '1995-02-26', 'mariana.sanchez@example.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy'),
     (6, 2, 'Jorge', 'Morales', 'Vega', '1986-06-30', 'jorge.morales@example.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy'),
     (7, 2, 'Valeria', 'Castillo', 'León', '1998-12-09', 'valeria.castillo@example.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy'),
-    (8, 2, 'Ricardo', 'Flores', 'Navarro', '1990-04-11', 'ricardo.flores@example.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy');
+    (8, 2, 'Ricardo', 'Flores', 'Navarro', '1990-04-11', 'ricardo.flores@example.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy'),
+    (9, 2, 'Antonio', 'Gonzalez', 'Romero', '1999-07-12', 'tony@example.com', '$2a$10$WMP0sMgmJreCCosBAe2ANuepr6Tz3czlXB7MDfgZA7.GKwUltk682');
 
 INSERT INTO transaccion (
     id_usuario, id_tipo_transaccion, descripcion, monto, fecha
@@ -756,4 +757,19 @@ INSERT INTO transaccion (
     (8, 2, 'Compra de ropa', 3087.00, '2026-12-17'),
     (8, 2, 'Salida al cine', 3328.50, '2026-12-18'),
     (8, 2, 'Artículos para el hogar', 3570.00, '2026-12-19'),
-    (8, 2, 'Compra de farmacia', 3811.50, '2026-12-20');
+    (8, 2, 'Compra de farmacia', 3811.50, '2026-12-20'),
+    -- Antonio - Enero de 2026
+    (9, 1, 'Proyecto freelance', 2100.00, '2026-01-02'),
+    (9, 1, 'Comisión por ventas', 4147.50, '2026-01-05'),
+    (9, 2, 'Membresía de gimnasio', 2845.50, '2026-01-16'),
+    (9, 2, 'Compra de ropa', 3087.00, '2026-01-17'),
+    (9, 2, 'Salida al cine', 3328.50, '2026-01-18'),
+    (9, 2, 'Artículos para el hogar', 3570.00, '2026-01-19'),
+    -- Antonio - Junio de 2026
+    (9, 1, 'Bono de productividad', 2782.50, '2026-06-03'),
+    (9, 2, 'Compra de supermercado', 430.50, '2026-06-04'),
+    (9, 2, 'Transporte público', 672.00, '2026-06-05'),
+    (9, 2, 'Consulta médica', 913.50, '2026-06-06');
+
+
+

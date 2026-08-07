@@ -1,7 +1,7 @@
 {
   "modelo": "Linear SVC",
-  "accuracy_test": 0.8984,
-  "f1_macro_test": 0.9101,
+  "accuracy_test": 1.0,
+  "f1_macro_test": 1.0,
   "categorias": [
     "Alimentacion",
     "Educacion",
@@ -12,5 +12,5 @@
     "Transporte",
     "Vivienda"
   ],
-  "vectorizador": "artefactos/tfidf_vectorizer.pkl"
+  "vectorizador": "tfidf_vectorizer.pkl"
 }

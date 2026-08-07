@@ -1,15 +1,23 @@
 package smart.finance.ai.service;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import smart.finance.ai.dto.ml.MlClasificacionResponse;
 import smart.finance.ai.dto.response.TransaccionResponseDTO;
+import smart.finance.ai.util.CategoriaGastoMapper;
 
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
 public class ClasificacionServiceImpl implements ClasificacionService {
+
+    private final MlApiClient mlApiClient;
 
     private static final Map<String, Integer> PALABRAS_CLAVE = new LinkedHashMap<>();
 
@@ -54,9 +62,22 @@ public class ClasificacionServiceImpl implements ClasificacionService {
         PALABRAS_CLAVE.put("telefono", 7);
     }
 
-    /** Devuelve el id de categoria_gasto (1-8) que mejor corresponde a la descripcion. */
+    /** Devuelve el id de categoria_gasto (1-8) que mejor corresponde a la descripcion.
+     *  Se delega al modelo de data-science; si el servicio ML no esta disponible,
+     *  se degrada a las reglas locales (PALABRAS_CLAVE). */
     @Override
     public int clasificar(String descripcion) {
+        Optional<MlClasificacionResponse> mRespuesta = mlApiClient.clasificar(descripcion);
+        if (mRespuesta.isPresent() && mRespuesta.get().getCategoria() != null) {
+            Integer id = CategoriaGastoMapper.idDesdeSlug(mRespuesta.get().getCategoria());
+            if (id != null) {
+                return id;
+            }
+        }
+        return clasificarPorRegla(descripcion);
+    }
+
+    private int clasificarPorRegla(String descripcion) {
         String textoNormalizado = descripcion == null
                 ? ""
                 : descripcion.toLowerCase(Locale.forLanguageTag("es"));
@@ -85,10 +106,54 @@ public class ClasificacionServiceImpl implements ClasificacionService {
         return 2; // ID 2 = GASTO
     }
 
-    /** Clasifica y devuelve respaldo con la probabilidad de la regla aplicada. */
+    /**
+     * Clasifica contra el modelo y devuelve la categoria con la probabilidad real.
+     * Si el servicio ML no esta disponible, usa las reglas locales con una
+     * probabilidad fija como respaldo.
+     */
     @Override
     public TransaccionResponseDTO clasificarConProbabilidad(String descripcion) {
-        int categoria = clasificar(descripcion);
+        Optional<MlClasificacionResponse> mRespuesta = mlApiClient.clasificar(descripcion);
+        if (mRespuesta.isPresent() && mRespuesta.get().getCategoria() != null) {
+            return toDtoModelo(mRespuesta.get());
+        }
+        return toDtoRegla(descripcion);
+    }
+
+    @Override
+    public Map<String, TransaccionResponseDTO> clasificarConProbabilidadLote(List<String> descripciones) {
+        Map<String, TransaccionResponseDTO> resultado = new LinkedHashMap<>();
+
+        mlApiClient.clasificarLote(descripciones).ifPresent(lista ->
+                lista.forEach(respuesta -> {
+                    if (respuesta.getDescripcion() != null) {
+                        resultado.merge(respuesta.getDescripcion(),
+                                toDtoModelo(respuesta), (a, b) -> a);
+                    }
+                }));
+
+        for (String descripcion : descripciones) {
+            if (descripcion != null && !resultado.containsKey(descripcion)) {
+                resultado.put(descripcion, toDtoRegla(descripcion));
+            }
+        }
+        return resultado;
+    }
+
+    private TransaccionResponseDTO toDtoModelo(MlClasificacionResponse respuesta) {
+        Integer id = CategoriaGastoMapper.idDesdeSlug(respuesta.getCategoria());
+        BigDecimal probabilidad = respuesta.getProbabilidad() == null
+                ? new BigDecimal("0.870")
+                : BigDecimal.valueOf(respuesta.getProbabilidad());
+        return TransaccionResponseDTO.builder()
+                .categoria(CategoriaGastoMapper.nombreDesdeSlug(respuesta.getCategoria()))
+                .idCategoria(id)
+                .probabilidad(probabilidad)
+                .build();
+    }
+
+    private TransaccionResponseDTO toDtoRegla(String descripcion) {
+        int categoria = clasificarPorRegla(descripcion);
         BigDecimal probabilidad = categoria == 8
                 ? new BigDecimal("0.500")
                 : new BigDecimal("0.870");
