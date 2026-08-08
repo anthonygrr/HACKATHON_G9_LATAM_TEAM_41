@@ -16,6 +16,11 @@ services:
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_PASSWORD}
       - MYSQL_DATABASE=${MYSQL_DB}
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     networks:
       - smart-finance-ai-network
 
@@ -43,12 +48,17 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
+      - DB_URL=jdbc:mysql://db-service:3306/${MYSQL_DB}?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
       - ML_SERVICE_URL=http://ml-service:8000
       - ML_API_KEY=${ML_API_KEY}
     depends_on:
-      - ml-service
-      - db-service
+      ml-service:
+        condition: service_started
+      db-service:
+        condition: service_healthy
     networks:
       - smart-finance-ai-network
 
