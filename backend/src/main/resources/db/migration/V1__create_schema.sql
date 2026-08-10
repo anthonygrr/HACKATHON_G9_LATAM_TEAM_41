@@ -74,6 +74,9 @@ CREATE TABLE transaccion (
 CREATE TABLE analisis_financiero (
     id_analisis_financiero INT NOT NULL AUTO_INCREMENT,
     id_usuario INT NOT NULL,
+    ingreso_mensual DECIMAL(12 , 2 ) NOT NULL,
+    nivel_endeudamiento DECIMAL(12 , 2 ) NOT NULL,
+    frecuencia_ahorro VARCHAR(20) NOT NULL,
     id_salud_financiera INT NOT NULL,
     mes INTEGER NOT NULL,
     anio INTEGER NOT NULL,

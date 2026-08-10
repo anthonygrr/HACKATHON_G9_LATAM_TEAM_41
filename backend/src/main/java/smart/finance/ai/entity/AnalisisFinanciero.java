@@ -2,6 +2,7 @@ package smart.finance.ai.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +35,15 @@ public class AnalisisFinanciero {
 
     @Column(name = "fecha_generacion", nullable = false)
     private LocalDateTime fechaGeneracion;
+
+    @Column(name = "ingreso_mensual", nullable = false)
+    private BigDecimal ingresoMensual;
+
+    @Column(name = "nivel_endeudamiento", nullable = false)
+    private BigDecimal nivelEndeudamiento;
+
+    @Column(name = "frecuencia_ahorro", nullable = false)
+    private String frecuenciaAhorro;
 
     @OneToOne(mappedBy = "analisisFinanciero", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private ClasificacionTransaccion clasificacionTransaccion;
