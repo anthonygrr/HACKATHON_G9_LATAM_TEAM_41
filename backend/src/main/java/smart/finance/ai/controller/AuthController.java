@@ -1,6 +1,7 @@
 package smart.finance.ai.controller;
 
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +16,7 @@ import smart.finance.ai.service.AuthService;
 
 @RestController
 @RequiredArgsConstructor
+@SecurityRequirements
 @RequestMapping("/auth")
 public class AuthController {
 

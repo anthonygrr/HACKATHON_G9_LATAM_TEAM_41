@@ -3,11 +3,13 @@ package smart.finance.ai.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import smart.finance.ai.config.security.SecurityUtils;
 import smart.finance.ai.dto.request.TransaccionRequestDTO;
 import smart.finance.ai.dto.response.TransaccionResponseDTO;
 import smart.finance.ai.entity.TipoTransaccion;
 import smart.finance.ai.entity.Transaccion;
 import smart.finance.ai.entity.Usuario;
+import smart.finance.ai.exception.ForbiddenException;
 import smart.finance.ai.exception.ResourceNotFoundException;
 import smart.finance.ai.repository.TipoTransaccionRepository;
 import smart.finance.ai.repository.TransaccionRepository;
@@ -28,6 +30,8 @@ public class TransaccionServiceImpl implements TransaccionService {
     @Override
     @Transactional
     public List<TransaccionResponseDTO> crearTransacciones(List<TransaccionRequestDTO> dtos) {
+        dtos.forEach(dto -> SecurityUtils.assertOwnerOrAdmin(dto.getUsuarioId()));
+
         List<Transaccion> guardadas = transaccionRepository.saveAll(
                 dtos.stream().map(this::buildTransaccion).collect(Collectors.toList()));
         return guardadas.stream().map(this::mapToDTO).collect(Collectors.toList());
@@ -36,10 +40,11 @@ public class TransaccionServiceImpl implements TransaccionService {
     @Override
     @Transactional(readOnly = true)
     public List<TransaccionResponseDTO> listarPorUsuario(Integer usuarioId) {
-        if (!usuarioRepository.existsById(usuarioId)) {
+        Integer effectiveUsuarioId = SecurityUtils.effectiveUserId(usuarioId);
+        if (!usuarioRepository.existsById(effectiveUsuarioId)) {
             throw new ResourceNotFoundException("El usuario especificado no existe.");
         }
-        return transaccionRepository.findByUsuarioId(usuarioId)
+        return transaccionRepository.findByUsuarioId(effectiveUsuarioId)
                 .stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
@@ -48,18 +53,17 @@ public class TransaccionServiceImpl implements TransaccionService {
     @Override
     @Transactional(readOnly = true)
     public TransaccionResponseDTO obtenerPorId(Integer id) {
-        Transaccion transaccion = transaccionRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("La transacción no existe."));
+        Transaccion transaccion = obtenerEntidad(id);
         return mapToDTO(transaccion);
     }
 
     @Override
     @Transactional
     public TransaccionResponseDTO actualizarTransaccion(Integer id, TransaccionRequestDTO dto) {
-        Transaccion transaccion = transaccionRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("La transacción especificada no existe."));
+        Transaccion transaccion = obtenerEntidad(id);
 
         if (dto.getUsuarioId() != null) {
+            SecurityUtils.assertOwnerOrAdmin(dto.getUsuarioId());
             Usuario usuario = usuarioRepository.findById(dto.getUsuarioId())
                     .orElseThrow(() -> new ResourceNotFoundException("El usuario especificado no existe."));
             transaccion.setUsuario(usuario);
@@ -76,10 +80,21 @@ public class TransaccionServiceImpl implements TransaccionService {
     @Override
     @Transactional
     public void eliminarTransaccion(Integer id) {
-        if (!transaccionRepository.existsById(id)) {
-            throw new ResourceNotFoundException("La transacción especificada no existe.");
+        transaccionRepository.delete(obtenerEntidad(id));
+    }
+
+    private Transaccion obtenerEntidad(Integer id) {
+        if (SecurityUtils.isAdmin()) {
+            return transaccionRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("La transacción no existe."));
         }
-        transaccionRepository.deleteById(id);
+        return transaccionRepository.findByIdAndUsuario_Id(id, SecurityUtils.currentUserId())
+                .orElseGet(() -> {
+                    if (transaccionRepository.existsById(id)) {
+                        throw new ForbiddenException("La transacción no te pertenece.");
+                    }
+                    throw new ResourceNotFoundException("La transacción no existe.");
+                });
     }
 
     private Transaccion buildTransaccion(TransaccionRequestDTO dto) {
