@@ -71,10 +71,14 @@ public class AuthServiceImpl implements AuthService {
             throw new BadCredentialsException("Usuario o contraseña incorrectos");
         }
 
+        Integer userId = userRepository.findByCorreo(request.correo())
+                .map(Usuario::getId)
+                .orElseThrow(() -> new BadCredentialsException("Usuario o contraseña incorrectos"));
+
         Authentication authentication = new UsernamePasswordAuthenticationToken(
                 userDetails, null, userDetails.getAuthorities());
 
-        String jwt = jwtProvider.generateToken(authentication);
+        String jwt = jwtProvider.generateToken(authentication, userId);
         String role = userDetails.getAuthorities().stream()
                 .findFirst()
                 .map(GrantedAuthority::getAuthority)
@@ -91,6 +95,6 @@ public class AuthServiceImpl implements AuthService {
         List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(usuario.getRol().getNombre()));
         Authentication authentication = new UsernamePasswordAuthenticationToken(
                 usuario.getCorreo(), null, authorities);
-        return jwtProvider.generateToken(authentication);
+        return jwtProvider.generateToken(authentication, usuario.getId());
     }
 }

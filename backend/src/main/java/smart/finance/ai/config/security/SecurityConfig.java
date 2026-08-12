@@ -23,6 +23,7 @@ import java.util.Collections;
 public class SecurityConfig {
 
     private final JwtTokenValidator jwtTokenValidator;
+    private final RateLimitFilter rateLimitFilter;
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception{
@@ -32,6 +33,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll()
                 )
+                .addFilterBefore(rateLimitFilter, BasicAuthenticationFilter.class)
                 .addFilterBefore(jwtTokenValidator, BasicAuthenticationFilter.class)
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()));

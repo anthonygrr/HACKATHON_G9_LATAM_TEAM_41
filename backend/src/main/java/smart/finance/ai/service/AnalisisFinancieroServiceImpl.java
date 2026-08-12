@@ -3,6 +3,7 @@ package smart.finance.ai.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import smart.finance.ai.config.security.SecurityUtils;
 import smart.finance.ai.dto.ml.MlAnalisisFinancieroRequest;
 import smart.finance.ai.dto.ml.MlAnalisisFinancieroResponse;
 import smart.finance.ai.dto.request.AnalisisFinancieroRequest;
@@ -12,6 +13,8 @@ import smart.finance.ai.dto.response.AnalisisFinancieroResumenResponse;
 import smart.finance.ai.dto.response.ResumenGastoResponse;
 import smart.finance.ai.dto.response.TransaccionResponseDTO;
 import smart.finance.ai.entity.*;
+import smart.finance.ai.exception.ForbiddenException;
+import smart.finance.ai.exception.ResourceNotFoundException;
 import smart.finance.ai.repository.*;
 import smart.finance.ai.util.CategoriaGastoMapper;
 
@@ -41,6 +44,8 @@ public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService 
     @Override
     @Transactional
     public AnalisisFinancieroResponse crear(AnalisisFinancieroRequest request) {
+        SecurityUtils.assertOwnerOrAdmin(request.usuarioId());
+
         Usuario usuario = usuarioRepository.findById(request.usuarioId())
                 .orElseThrow(() -> new NoSuchElementException("Usuario no encontrado: " + request.usuarioId()));
 
@@ -64,7 +69,8 @@ public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService 
     @Override
     @Transactional(readOnly = true)
     public List<AnalisisFinancieroResumenResponse> historial(Integer usuarioId) {
-        return analisisRepository.findByUsuarioOrderByFechaGeneracionDesc(usuarioId)
+        Integer effectiveUsuarioId = SecurityUtils.effectiveUserId(usuarioId);
+        return analisisRepository.findByUsuarioOrderByFechaGeneracionDesc(effectiveUsuarioId)
                 .stream()
                 .map(a -> new AnalisisFinancieroResumenResponse(
                         a.getId(),
@@ -84,16 +90,16 @@ public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService 
     @Override
     @Transactional(readOnly = true)
     public AnalisisFinancieroResponse obtener(Integer id) {
-        AnalisisFinanciero analisis = analisisRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Analisis no encontrado: " + id));
+        AnalisisFinanciero analisis = obtenerEntidad(id);
         return toDetalleResponse(analisis);
     }
 
     @Override
     @Transactional
     public AnalisisFinancieroResponse actualizar(Integer id, AnalisisFinancieroRequest request) {
-        AnalisisFinanciero analisis = analisisRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Analisis no encontrado: " + id));
+        AnalisisFinanciero analisis = obtenerEntidad(id);
+
+        SecurityUtils.assertOwnerOrAdmin(request.usuarioId());
 
         Usuario usuario = usuarioRepository.findById(request.usuarioId())
                 .orElseThrow(() -> new NoSuchElementException("Usuario no encontrado: " + request.usuarioId()));
@@ -120,10 +126,21 @@ public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService 
     @Override
     @Transactional
     public void eliminar(Integer id) {
-        if (!analisisRepository.existsById(id)) {
-            throw new NoSuchElementException("Analisis no encontrado: " + id);
+        analisisRepository.delete(obtenerEntidad(id));
+    }
+
+    private AnalisisFinanciero obtenerEntidad(Integer id) {
+        if (SecurityUtils.isAdmin()) {
+            return analisisRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("El análisis financiero no existe: " + id));
         }
-        analisisRepository.deleteById(id);
+        return analisisRepository.findByIdAndUsuario_Id(id, SecurityUtils.currentUserId())
+                .orElseGet(() -> {
+                    if (analisisRepository.existsById(id)) {
+                        throw new ForbiddenException("El análisis financiero no te pertenece.");
+                    }
+                    throw new ResourceNotFoundException("El análisis financiero no existe: " + id);
+                });
     }
 
     private void poblar(AnalisisFinanciero analisis, AnalisisFinancieroRequest request) {
