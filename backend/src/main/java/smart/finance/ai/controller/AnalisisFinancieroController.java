@@ -29,7 +29,7 @@ public class AnalisisFinancieroController {
 
     @GetMapping
     public ResponseEntity<List<AnalisisFinancieroResumenResponse>> historial(
-            @RequestParam Integer usuarioId) {
+            @RequestParam(required = false) Integer usuarioId) {
         return ResponseEntity.ok(service.historial(usuarioId));
     }
 

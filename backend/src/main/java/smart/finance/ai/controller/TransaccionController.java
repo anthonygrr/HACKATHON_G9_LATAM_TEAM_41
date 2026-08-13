@@ -23,8 +23,9 @@ public class TransaccionController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @GetMapping("/usuario/{usuarioId}")
-    public ResponseEntity<List<TransaccionResponseDTO>> listarPorUsuario(@PathVariable Integer usuarioId) {
+    @GetMapping
+    public ResponseEntity<List<TransaccionResponseDTO>> listar(
+            @RequestParam(required = false) Integer usuarioId) {
         return ResponseEntity.ok(transaccionService.listarPorUsuario(usuarioId));
     }
 

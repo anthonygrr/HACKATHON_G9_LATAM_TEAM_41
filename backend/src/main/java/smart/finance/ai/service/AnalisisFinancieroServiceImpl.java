@@ -44,10 +44,10 @@ public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService 
     @Override
     @Transactional
     public AnalisisFinancieroResponse crear(AnalisisFinancieroRequest request) {
-        SecurityUtils.assertOwnerOrAdmin(request.usuarioId());
+        Integer usuarioId = SecurityUtils.resolveOwnerOrAdmin(request.usuarioId());
 
-        Usuario usuario = usuarioRepository.findById(request.usuarioId())
-                .orElseThrow(() -> new NoSuchElementException("Usuario no encontrado: " + request.usuarioId()));
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new NoSuchElementException("Usuario no encontrado: " + usuarioId));
 
         AnalisisFinanciero analisis = AnalisisFinanciero.builder()
                 .usuario(usuario)
@@ -69,11 +69,14 @@ public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService 
     @Override
     @Transactional(readOnly = true)
     public List<AnalisisFinancieroResumenResponse> historial(Integer usuarioId) {
-        Integer effectiveUsuarioId = SecurityUtils.effectiveUserId(usuarioId);
+        Integer effectiveUsuarioId = (usuarioId == null)
+                ? SecurityUtils.currentUserId()
+                : SecurityUtils.effectiveUserId(usuarioId);
         return analisisRepository.findByUsuarioOrderByFechaGeneracionDesc(effectiveUsuarioId)
                 .stream()
                 .map(a -> new AnalisisFinancieroResumenResponse(
                         a.getId(),
+                        a.getUsuario().getId(),
                         a.getIngresoMensual(),
                         a.getNivelEndeudamiento(),
                         a.getFrecuenciaAhorro(),
@@ -99,10 +102,10 @@ public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService 
     public AnalisisFinancieroResponse actualizar(Integer id, AnalisisFinancieroRequest request) {
         AnalisisFinanciero analisis = obtenerEntidad(id);
 
-        SecurityUtils.assertOwnerOrAdmin(request.usuarioId());
+        Integer usuarioId = SecurityUtils.resolveOwnerOrAdmin(request.usuarioId());
 
-        Usuario usuario = usuarioRepository.findById(request.usuarioId())
-                .orElseThrow(() -> new NoSuchElementException("Usuario no encontrado: " + request.usuarioId()));
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new NoSuchElementException("Usuario no encontrado: " + usuarioId));
 
         analisis.setUsuario(usuario);
         analisis.setIngresoMensual(request.ingresoMensual());
@@ -354,7 +357,7 @@ public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService 
 
         return new AnalisisFinancieroResponse(
                 analisis.getId(),
-                analisis.getUsuario().getNombre(),
+                analisis.getUsuario().getId(),
                 analisis.getIngresoMensual(),
                 analisis.getNivelEndeudamiento(),
                 analisis.getFrecuenciaAhorro(),

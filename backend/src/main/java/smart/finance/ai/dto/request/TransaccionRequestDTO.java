@@ -7,7 +7,6 @@ import java.math.BigDecimal;
 @Data
 public class TransaccionRequestDTO {
 
-    @NotNull(message = "El ID de usuario es obligatorio")
     private Integer usuarioId;
 
     @NotBlank(message = "La descripción no puede estar vacía")

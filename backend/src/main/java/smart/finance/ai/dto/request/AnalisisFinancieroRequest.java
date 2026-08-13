@@ -10,7 +10,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 public record AnalisisFinancieroRequest(
-        @NotNull Integer usuarioId,
+        Integer usuarioId,
         @NotNull Integer mes,
         @NotNull Integer anio,
         @NotNull @Positive BigDecimal ingresoMensual,
