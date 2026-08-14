@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 
 public record AnalisisFinancieroResumenResponse(
         Integer id,
+        Integer usuarioId,
         BigDecimal ingresoMensual,
         BigDecimal nivelEndeudamiento,
         String frecuenciaAhorro,

@@ -17,7 +17,4 @@ public class TransaccionResponseDTO {
     private String tipoTransaccion;
     private BigDecimal probabilidad;
     private Integer usuarioId;
-    private String nombre;
-    private String apellidoPaterno;
-    private String correo;
 }

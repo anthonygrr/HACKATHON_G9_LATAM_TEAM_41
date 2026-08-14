@@ -40,4 +40,17 @@ public final class SecurityUtils {
             throw new ForbiddenException("No tiene permisos para acceder a este recurso");
         }
     }
+
+    /**
+     * Resuelve el usuario dueno de un recurso al crear/editarlo:
+     * si no se envia {@code requestedId} usa el usuario autenticado;
+     * si se envia, valida que sea el dueno (o admin) antes de usarlo.
+     */
+    public static Integer resolveOwnerOrAdmin(Integer requestedUserId) {
+        if (requestedUserId == null) {
+            return currentUserId();
+        }
+        assertOwnerOrAdmin(requestedUserId);
+        return requestedUserId;
+    }
 }

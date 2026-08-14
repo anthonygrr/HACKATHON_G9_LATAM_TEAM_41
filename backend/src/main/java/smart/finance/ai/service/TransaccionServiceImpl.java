@@ -30,7 +30,7 @@ public class TransaccionServiceImpl implements TransaccionService {
     @Override
     @Transactional
     public List<TransaccionResponseDTO> crearTransacciones(List<TransaccionRequestDTO> dtos) {
-        dtos.forEach(dto -> SecurityUtils.assertOwnerOrAdmin(dto.getUsuarioId()));
+        dtos.forEach(dto -> dto.setUsuarioId(SecurityUtils.resolveOwnerOrAdmin(dto.getUsuarioId())));
 
         List<Transaccion> guardadas = transaccionRepository.saveAll(
                 dtos.stream().map(this::buildTransaccion).collect(Collectors.toList()));
@@ -40,7 +40,9 @@ public class TransaccionServiceImpl implements TransaccionService {
     @Override
     @Transactional(readOnly = true)
     public List<TransaccionResponseDTO> listarPorUsuario(Integer usuarioId) {
-        Integer effectiveUsuarioId = SecurityUtils.effectiveUserId(usuarioId);
+        Integer effectiveUsuarioId = (usuarioId == null)
+                ? SecurityUtils.currentUserId()
+                : SecurityUtils.effectiveUserId(usuarioId);
         if (!usuarioRepository.existsById(effectiveUsuarioId)) {
             throw new ResourceNotFoundException("El usuario especificado no existe.");
         }
@@ -62,12 +64,10 @@ public class TransaccionServiceImpl implements TransaccionService {
     public TransaccionResponseDTO actualizarTransaccion(Integer id, TransaccionRequestDTO dto) {
         Transaccion transaccion = obtenerEntidad(id);
 
-        if (dto.getUsuarioId() != null) {
-            SecurityUtils.assertOwnerOrAdmin(dto.getUsuarioId());
-            Usuario usuario = usuarioRepository.findById(dto.getUsuarioId())
-                    .orElseThrow(() -> new ResourceNotFoundException("El usuario especificado no existe."));
-            transaccion.setUsuario(usuario);
-        }
+        dto.setUsuarioId(SecurityUtils.resolveOwnerOrAdmin(dto.getUsuarioId()));
+        Usuario usuario = usuarioRepository.findById(dto.getUsuarioId())
+                .orElseThrow(() -> new ResourceNotFoundException("El usuario especificado no existe."));
+        transaccion.setUsuario(usuario);
 
         transaccion.setDescripcion(dto.getDescripcion());
         transaccion.setMonto(dto.getMonto());
@@ -122,7 +122,6 @@ public class TransaccionServiceImpl implements TransaccionService {
     private TransaccionResponseDTO mapToDTO(Transaccion t) {
         TransaccionResponseDTO clasificacion =
                 clasificacionService.clasificarConProbabilidad(t.getDescripcion());
-        Usuario usuario = t.getUsuario();
 
         return TransaccionResponseDTO.builder()
                 .id(t.getId())
@@ -133,10 +132,7 @@ public class TransaccionServiceImpl implements TransaccionService {
                 .fecha(t.getFecha())
                 .tipoTransaccion(t.getTipoTransaccion().getNombre())
                 .probabilidad(clasificacion.getProbabilidad())
-                .usuarioId(usuario.getId())
-                .nombre(usuario.getNombre())
-                .apellidoPaterno(usuario.getApellidoPaterno())
-                .correo(usuario.getCorreo())
+                .usuarioId(t.getUsuario().getId())
                 .build();
     }
 

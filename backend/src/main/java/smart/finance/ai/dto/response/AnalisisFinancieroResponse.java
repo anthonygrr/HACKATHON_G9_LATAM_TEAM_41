@@ -6,7 +6,7 @@ import java.util.List;
 
 public record AnalisisFinancieroResponse(
         Integer id,
-        String usuario,
+        Integer usuarioId,
         BigDecimal ingresoMensual,
         BigDecimal nivelEndeudamiento,
         String frecuenciaAhorro,
