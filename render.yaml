@@ -13,7 +13,7 @@ services:
     plan: free
     rootDir: data-science/ml-api
     buildCommand: pip install --upgrade pip && pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    startCommand: gunicorn -k uvicorn.workers.UvicornWorker app:app
     healthCheckPath: /health
     envVars:
       - key: PORT
@@ -30,7 +30,7 @@ services:
     region: oregon
     plan: free
     dockerfilePath: ./Dockerfile
-    healthCheckPath: /api/v1/home
+    healthCheckPath: /health
     envVars:
       - key: PORT
         value: "8080"
