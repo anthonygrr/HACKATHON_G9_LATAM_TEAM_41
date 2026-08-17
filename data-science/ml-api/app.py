@@ -33,6 +33,11 @@ BASE_DIR = os.path.normpath(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_MODEL_DIR = os.path.normpath(os.path.join(BASE_DIR, ".."))
 MODEL_DIR = os.environ.get("MODEL_DIR", DEFAULT_MODEL_DIR)
 
+# Si MODEL_DIR (p.ej. un valor obsoleto o relativo al cwd) no contiene los artefactos,
+# se usa la raiz de data-science (carpeta padre de ml-api/) como fallback.
+if not os.path.exists(os.path.join(MODEL_DIR, "modelo_clasificador_gastos.pkl")):
+    MODEL_DIR = DEFAULT_MODEL_DIR
+
 
 def _load(name: str):
     path = os.path.join(MODEL_DIR, name)

@@ -20,6 +20,8 @@ services:
         value: "10000"
       - key: PYTHON_VERSION
         value: 3.11.9
+      - key: MODEL_DIR
+        value: ".."
 
   # ------------------------------------------------------------------
   # Backend (Docker/Spring Boot) - usa el Dockerfile en la raiz
