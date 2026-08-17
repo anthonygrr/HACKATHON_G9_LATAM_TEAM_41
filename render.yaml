@@ -11,15 +11,13 @@ services:
     env: python
     region: oregon
     plan: free
-    rootDir: data-science
+    rootDir: data-science/ml-api
     buildCommand: pip install --upgrade pip && pip install -r requirements.txt
-    startCommand: uvicorn ml-api.app:app --host 0.0.0.0 --port $PORT
+    startCommand: gunicorn app:app
     healthCheckPath: /health
     envVars:
       - key: PORT
         value: "10000"
-      - key: MODEL_DIR
-        value: .
       - key: PYTHON_VERSION
         value: 3.11.9
 
