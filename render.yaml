@@ -12,7 +12,7 @@ services:
     region: oregon
     plan: free
     rootDir: data-science
-    buildCommand: pip install -r ml-api/requirements.txt
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
     startCommand: uvicorn ml-api.app:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
@@ -20,6 +20,8 @@ services:
         value: "10000"
       - key: MODEL_DIR
         value: .
+      - key: PYTHON_VERSION
+        value: 3.11.9
 
   # ------------------------------------------------------------------
   # Backend (Docker/Spring Boot) - usa el Dockerfile en la raiz
@@ -32,6 +34,8 @@ services:
     dockerfilePath: ./Dockerfile
     healthCheckPath: /api/v1/home
     envVars:
+      - key: PORT
+        value: "8080"
       - key: SPRING_PROFILES_ACTIVE
         value: prod
       - key: SPRING_DATASOURCE_URL
