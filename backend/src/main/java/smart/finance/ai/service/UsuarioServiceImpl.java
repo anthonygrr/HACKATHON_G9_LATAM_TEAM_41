@@ -1,9 +1,5 @@
 package smart.finance.ai.service;
 
-
-
-
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -15,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import smart.finance.ai.config.security.JwtProvider;
 import smart.finance.ai.config.security.SecurityUtils;
+import smart.finance.ai.dto.common.PageResponseDTO;
 import smart.finance.ai.dto.request.UsuarioCreateRequest;
 import smart.finance.ai.dto.request.UsuarioUpdateRequest;
 import smart.finance.ai.dto.response.UsuarioResponse;
@@ -83,13 +80,18 @@ public class UsuarioServiceImpl implements UsuarioService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<UsuarioResponse> listar() {
+    public PageResponseDTO<UsuarioResponse> listar(String nombre, String correo,
+                                                   LocalDate fechaNacimientoInicio, LocalDate fechaNacimientoFin,
+                                                   int page, int size, String sort) {
         if (!SecurityUtils.isAdmin()) {
             throw new ForbiddenException("Solo los administradores pueden listar usuarios");
         }
-        return userRepository.findAll().stream()
-                .map(this::toResponse)
-                .toList();
+        Specification<Usuario> spec = UsuarioSpecification.conFiltros(
+                nombre, correo, fechaNacimientoInicio, fechaNacimientoFin);
+        Pageable pageable = PaginacionUtils.crearPageable(page, size, sort, CAMPOS_ORDEN, "id");
+
+        Page<Usuario> pagina = userRepository.findAll(spec, pageable);
+        return new PageResponseDTO<>(pagina.map(this::toResponse));
     }
 
     @Override
