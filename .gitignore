@@ -1,3 +1,5 @@
 .env
 .idea/
 backend/*.log
+CODE-WIKI.md
+session-*.md
