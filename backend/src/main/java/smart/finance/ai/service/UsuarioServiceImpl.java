@@ -5,6 +5,9 @@ package smart.finance.ai.service;
 
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -22,13 +25,18 @@ import smart.finance.ai.exception.ForbiddenException;
 import smart.finance.ai.exception.ResourceNotFoundException;
 import smart.finance.ai.repository.RolRepository;
 import smart.finance.ai.repository.UsuarioRepository;
+import smart.finance.ai.specification.UsuarioSpecification;
+import smart.finance.ai.util.PaginacionUtils;
 
-import java.util.List;
+import java.time.LocalDate;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class UsuarioServiceImpl implements UsuarioService {
+
+    private static final Set<String> CAMPOS_ORDEN = Set.of("id", "nombre", "apellidoPaterno", "correo");
 
     private final UsuarioRepository userRepository;
     private final RolRepository rolRepository;

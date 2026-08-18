@@ -5,7 +5,7 @@ import smart.finance.ai.dto.request.UsuarioUpdateRequest;
 import smart.finance.ai.dto.response.UsuarioResponse;
 import smart.finance.ai.entity.Usuario;
 
-import java.util.List;
+import java.time.LocalDate;
 
 public interface UsuarioService {
 
@@ -23,4 +23,3 @@ public interface UsuarioService {
 
     void eliminar(Integer id);
 }
-

@@ -1,9 +1,13 @@
 package smart.finance.ai.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import smart.finance.ai.config.security.SecurityUtils;
+import smart.finance.ai.dto.common.PageResponseDTO;
 import smart.finance.ai.dto.ml.MlAnalisisFinancieroRequest;
 import smart.finance.ai.dto.ml.MlAnalisisFinancieroResponse;
 import smart.finance.ai.dto.request.AnalisisFinancieroRequest;
@@ -16,7 +20,9 @@ import smart.finance.ai.entity.*;
 import smart.finance.ai.exception.ForbiddenException;
 import smart.finance.ai.exception.ResourceNotFoundException;
 import smart.finance.ai.repository.*;
+import smart.finance.ai.specification.AnalisisFinancieroSpecification;
 import smart.finance.ai.util.CategoriaGastoMapper;
+import smart.finance.ai.util.PaginacionUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -28,6 +34,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService {
+
+    private static final Set<String> CAMPOS_ORDEN = Set.of("id", "mes", "anio", "fechaGeneracion");
 
     private final AnalisisFinancieroRepository analisisRepository;
     private final ClasificacionTransaccionRepository clasificacionRepository;
@@ -68,26 +76,38 @@ public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService 
 
     @Override
     @Transactional(readOnly = true)
-    public List<AnalisisFinancieroResumenResponse> historial(Integer usuarioId) {
-        Integer effectiveUsuarioId = (usuarioId == null)
-                ? SecurityUtils.currentUserId()
-                : SecurityUtils.effectiveUserId(usuarioId);
-        return analisisRepository.findByUsuarioOrderByFechaGeneracionDesc(effectiveUsuarioId)
-                .stream()
-                .map(a -> new AnalisisFinancieroResumenResponse(
-                        a.getId(),
-                        a.getUsuario().getId(),
-                        a.getIngresoMensual(),
-                        a.getNivelEndeudamiento(),
-                        a.getFrecuenciaAhorro(),
-                        a.getMes(),
-                        a.getAnio(),
-                        a.getFechaGeneracion(),
-                        a.getSaludFinanciera().getNombre(),
-                        a.getClasificacionTransaccion() == null
-                                ? BigDecimal.ZERO
-                                : a.getClasificacionTransaccion().getProbabilidad()))
-                .toList();
+    public PageResponseDTO<AnalisisFinancieroResumenResponse> historial(Integer usuarioId, String salud,
+                                                                        LocalDateTime fechaInicio, LocalDateTime fechaFin,
+                                                                        int page, int size, String sort) {
+        Integer effectiveUsuarioId;
+        if (usuarioId == null) {
+            effectiveUsuarioId = SecurityUtils.isAdmin() ? null : SecurityUtils.currentUserId();
+        } else {
+            effectiveUsuarioId = SecurityUtils.effectiveUserId(usuarioId);
+        }
+
+        Specification<AnalisisFinanciero> spec = AnalisisFinancieroSpecification.conFiltros(
+                effectiveUsuarioId, salud, fechaInicio, fechaFin);
+        Pageable pageable = PaginacionUtils.crearPageable(page, size, sort, CAMPOS_ORDEN, "id");
+
+        Page<AnalisisFinanciero> pagina = analisisRepository.findAll(spec, pageable);
+        return new PageResponseDTO<>(pagina.map(this::toResumenResponse));
+    }
+
+    private AnalisisFinancieroResumenResponse toResumenResponse(AnalisisFinanciero analisis) {
+        return new AnalisisFinancieroResumenResponse(
+                analisis.getId(),
+                analisis.getUsuario().getId(),
+                analisis.getIngresoMensual(),
+                analisis.getNivelEndeudamiento(),
+                analisis.getFrecuenciaAhorro(),
+                analisis.getMes(),
+                analisis.getAnio(),
+                analisis.getFechaGeneracion(),
+                analisis.getSaludFinanciera().getNombre(),
+                analisis.getClasificacionTransaccion() == null
+                        ? BigDecimal.ZERO
+                        : analisis.getClasificacionTransaccion().getProbabilidad());
     }
 
     @Override
