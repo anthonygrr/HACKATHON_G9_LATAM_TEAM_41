@@ -4,18 +4,19 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import smart.finance.ai.dto.common.PageResponseDTO;
+import smart.finance.ai.dto.request.UsuarioCreateRequest;
 import smart.finance.ai.dto.request.UsuarioUpdateRequest;
 import smart.finance.ai.dto.response.UsuarioResponse;
 import smart.finance.ai.service.UsuarioService;
@@ -23,16 +24,17 @@ import smart.finance.ai.service.UsuarioService;
 import java.time.LocalDate;
 
 @RestController
-@RequestMapping("/usuarios")
+@RequestMapping("/api/v1/usuarios")
 @RequiredArgsConstructor
 public class UsuarioController {
 
     private final UsuarioService usuarioService;
 
-    @Operation(
-            summary = "Listar usuarios",
-            description = "Devuelve los usuarios con paginación y filtros opcionales por nombre, correo y rango "
-                    + "de fechas de nacimiento. Solo accesible para administradores.")
+    @PostMapping
+    public ResponseEntity<UsuarioResponse> crear(@Valid @RequestBody UsuarioCreateRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(usuarioService.crear(request));
+    }
+
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PageResponseDTO<UsuarioResponse>> listar(
