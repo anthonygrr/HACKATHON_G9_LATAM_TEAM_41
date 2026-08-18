@@ -2,11 +2,12 @@ package smart.finance.ai.dto.request;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 
-public record UsuarioUpdateRequest(
+public record UsuarioCreateRequest(
         @NotBlank(message = "El nombre es obligatorio")
         @Size(min = 2, max = 100, message = "El nombre debe tener entre 2 y 100 caracteres")
         String nombre,
@@ -25,6 +26,11 @@ public record UsuarioUpdateRequest(
         @Size(max = 255, message = "El correo no debe superar los 255 caracteres")
         String correo,
 
+        @NotBlank(message = "La contrasena es obligatoria")
+        @Size(min = 6, max = 255, message = "La contrasena debe tener entre 6 y 255 caracteres")
+        String contrasena,
+
+        @NotNull(message = "El rol es obligatorio")
         Integer rolId
 ) {
 }
