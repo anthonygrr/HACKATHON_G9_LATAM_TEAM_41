@@ -1,9 +1,13 @@
 package smart.finance.ai.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import smart.finance.ai.config.security.SecurityUtils;
+import smart.finance.ai.dto.common.PageResponseDTO;
 import smart.finance.ai.dto.request.TransaccionRequestDTO;
 import smart.finance.ai.dto.response.TransaccionResponseDTO;
 import smart.finance.ai.entity.TipoTransaccion;
@@ -14,13 +18,18 @@ import smart.finance.ai.exception.ResourceNotFoundException;
 import smart.finance.ai.repository.TipoTransaccionRepository;
 import smart.finance.ai.repository.TransaccionRepository;
 import smart.finance.ai.repository.UsuarioRepository;
+import smart.finance.ai.specification.TransaccionSpecification;
+import smart.finance.ai.util.PaginacionUtils;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class TransaccionServiceImpl implements TransaccionService {
+
+    private static final Set<String> CAMPOS_ORDEN = Set.of("id", "descripcion", "monto", "fecha");
 
     private final TransaccionRepository transaccionRepository;
     private final UsuarioRepository usuarioRepository;
@@ -39,17 +48,25 @@ public class TransaccionServiceImpl implements TransaccionService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<TransaccionResponseDTO> listarPorUsuario(Integer usuarioId) {
-        Integer effectiveUsuarioId = (usuarioId == null)
-                ? SecurityUtils.currentUserId()
-                : SecurityUtils.effectiveUserId(usuarioId);
-        if (!usuarioRepository.existsById(effectiveUsuarioId)) {
+    public PageResponseDTO<TransaccionResponseDTO> listar(Integer usuarioId, String descripcion, String tipo,
+                                                          LocalDate fechaInicio, LocalDate fechaFin,
+                                                          int page, int size, String sort) {
+        Integer effectiveUsuarioId;
+        if (usuarioId == null) {
+            effectiveUsuarioId = SecurityUtils.isAdmin() ? null : SecurityUtils.currentUserId();
+        } else {
+            effectiveUsuarioId = SecurityUtils.effectiveUserId(usuarioId);
+        }
+        if (effectiveUsuarioId != null && !usuarioRepository.existsById(effectiveUsuarioId)) {
             throw new ResourceNotFoundException("El usuario especificado no existe.");
         }
-        return transaccionRepository.findByUsuarioId(effectiveUsuarioId)
-                .stream()
-                .map(this::mapToDTO)
-                .collect(Collectors.toList());
+
+        Specification<Transaccion> spec = TransaccionSpecification.conFiltros(
+                effectiveUsuarioId, descripcion, tipo, fechaInicio, fechaFin);
+        Pageable pageable = PaginacionUtils.crearPageable(page, size, sort, CAMPOS_ORDEN, "id");
+
+        Page<Transaccion> pagina = transaccionRepository.findAll(spec, pageable);
+        return new PageResponseDTO<>(pagina.map(this::mapToDTO));
     }
 
     @Override

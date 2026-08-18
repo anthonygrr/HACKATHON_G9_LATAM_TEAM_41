@@ -5,11 +5,15 @@ package smart.finance.ai.service;
 
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import smart.finance.ai.config.security.JwtProvider;
+import smart.finance.ai.dto.common.PageResponseDTO;
 import smart.finance.ai.dto.request.UsuarioUpdateRequest;
 import smart.finance.ai.dto.response.UsuarioResponse;
 import smart.finance.ai.entity.Rol;
@@ -18,13 +22,18 @@ import smart.finance.ai.exception.DuplicateEmailException;
 import smart.finance.ai.exception.ResourceNotFoundException;
 import smart.finance.ai.repository.RolRepository;
 import smart.finance.ai.repository.UsuarioRepository;
+import smart.finance.ai.specification.UsuarioSpecification;
+import smart.finance.ai.util.PaginacionUtils;
 
-import java.util.List;
+import java.time.LocalDate;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class UsuarioServiceImpl implements UsuarioService {
+
+    private static final Set<String> CAMPOS_ORDEN = Set.of("id", "nombre", "apellidoPaterno", "correo");
 
     private final UsuarioRepository userRepository;
     private final RolRepository rolRepository;
@@ -45,10 +54,15 @@ public class UsuarioServiceImpl implements UsuarioService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<UsuarioResponse> listar() {
-        return userRepository.findAll().stream()
-                .map(this::toResponse)
-                .toList();
+    public PageResponseDTO<UsuarioResponse> listar(String nombre, String correo,
+                                                   LocalDate fechaNacimientoInicio, LocalDate fechaNacimientoFin,
+                                                   int page, int size, String sort) {
+        Specification<Usuario> spec = UsuarioSpecification.conFiltros(
+                nombre, correo, fechaNacimientoInicio, fechaNacimientoFin);
+        Pageable pageable = PaginacionUtils.crearPageable(page, size, sort, CAMPOS_ORDEN, "id");
+
+        Page<Usuario> pagina = userRepository.findAll(spec, pageable);
+        return new PageResponseDTO<>(pagina.map(this::toResponse));
     }
 
     @Override

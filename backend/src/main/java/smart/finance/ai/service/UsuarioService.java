@@ -1,10 +1,11 @@
 package smart.finance.ai.service;
 
+import smart.finance.ai.dto.common.PageResponseDTO;
 import smart.finance.ai.dto.request.UsuarioUpdateRequest;
 import smart.finance.ai.dto.response.UsuarioResponse;
 import smart.finance.ai.entity.Usuario;
 
-import java.util.List;
+import java.time.LocalDate;
 
 public interface UsuarioService {
 
@@ -12,7 +13,9 @@ public interface UsuarioService {
 
     Usuario findUserByEmail(String email);
 
-    List<UsuarioResponse> listar();
+    PageResponseDTO<UsuarioResponse> listar(String nombre, String correo,
+                                            LocalDate fechaNacimientoInicio, LocalDate fechaNacimientoFin,
+                                            int page, int size, String sort);
 
     UsuarioResponse obtenerPorId(Integer id);
 
@@ -20,4 +23,3 @@ public interface UsuarioService {
 
     void eliminar(Integer id);
 }
-
