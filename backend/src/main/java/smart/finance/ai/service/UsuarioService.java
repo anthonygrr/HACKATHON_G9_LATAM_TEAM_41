@@ -1,5 +1,6 @@
 package smart.finance.ai.service;
 
+import smart.finance.ai.dto.common.PageResponseDTO;
 import smart.finance.ai.dto.request.UsuarioCreateRequest;
 import smart.finance.ai.dto.request.UsuarioUpdateRequest;
 import smart.finance.ai.dto.response.UsuarioResponse;
@@ -15,7 +16,9 @@ public interface UsuarioService {
 
     UsuarioResponse crear(UsuarioCreateRequest request);
 
-    List<UsuarioResponse> listar();
+    PageResponseDTO<UsuarioResponse> listar(String nombre, String correo,
+                                            LocalDate fechaNacimientoInicio, LocalDate fechaNacimientoFin,
+                                            int page, int size, String sort);
 
     UsuarioResponse obtenerPorId(Integer id);
 
