@@ -140,6 +140,12 @@ public class TransaccionServiceImpl implements TransaccionService {
         TransaccionResponseDTO clasificacion =
                 clasificacionService.clasificarConProbabilidad(t.getDescripcion());
 
+        if (t.getTipoTransaccion().getNombre().equals("INGRESO")) {
+            clasificacion.setCategoria(null);
+            clasificacion.setIdCategoria(null);
+            clasificacion.setProbabilidad(null);
+        }
+
         return TransaccionResponseDTO.builder()
                 .id(t.getId())
                 .descripcion(t.getDescripcion())
