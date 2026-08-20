@@ -1,8 +1,10 @@
 package smart.finance.ai.dto.request;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @Data
 public class TransaccionRequestDTO {
@@ -18,4 +20,12 @@ public class TransaccionRequestDTO {
     private BigDecimal monto;
 
     private Integer tipoTransaccionId;
+
+    @Schema(
+            description = "Fecha de la transacción en formato yyyy-MM-dd. Es opcional: si no se envía, " +
+                    "se usa la fecha actual del sistema (LocalDate.now()).",
+            example = "2026-08-20",
+            requiredMode = Schema.RequiredMode.NOT_REQUIRED
+    )
+    private LocalDate fecha;
 }

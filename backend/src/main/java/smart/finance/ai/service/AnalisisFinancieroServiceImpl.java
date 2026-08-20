@@ -57,6 +57,10 @@ public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService 
         Usuario usuario = usuarioRepository.findById(usuarioId)
                 .orElseThrow(() -> new NoSuchElementException("Usuario no encontrado: " + usuarioId));
 
+        List<TransaccionAnalisisRequest> transacciones =
+                resolverTransaccionesParaCrear(usuario, request.transacciones());
+        boolean persistir = request.transacciones() != null && !request.transacciones().isEmpty();
+
         AnalisisFinanciero analisis = AnalisisFinanciero.builder()
                 .usuario(usuario)
                 .ingresoMensual(request.ingresoMensual())
@@ -68,10 +72,31 @@ public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService 
                 .recomendaciones(new ArrayList<>())
                 .build();
 
-        poblar(analisis, request);
+        poblar(analisis, request, transacciones, persistir);
 
         AnalisisFinanciero guardado = analisisRepository.save(analisis);
         return toDetalleResponse(guardado);
+    }
+
+    /**
+     * Resuelve las transacciones a analizar en modo hibrido (POST):
+     * si el body trae lista explicita se usa tal cual (modo simulacion);
+     * si es null/vacia se consultan las transacciones persistidas del usuario
+     * autenticado en MySQL (modo base de datos).
+     */
+    private List<TransaccionAnalisisRequest> resolverTransaccionesParaCrear(
+            Usuario usuario, List<TransaccionAnalisisRequest> transaccionesBody) {
+        if (transaccionesBody != null && !transaccionesBody.isEmpty()) {
+            return transaccionesBody;
+        }
+        List<Transaccion> persistidas = transaccionRepository.findByUsuarioId(usuario.getId());
+        if (persistidas.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "El usuario no tiene transacciones persistidas para generar el análisis.");
+        }
+        return persistidas.stream()
+                .map(tx -> new TransaccionAnalisisRequest(tx.getDescripcion(), tx.getMonto()))
+                .toList();
     }
 
     @Override
@@ -127,6 +152,11 @@ public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService 
         Usuario usuario = usuarioRepository.findById(usuarioId)
                 .orElseThrow(() -> new NoSuchElementException("Usuario no encontrado: " + usuarioId));
 
+        if (request.transacciones() == null || request.transacciones().isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Debe proporcionar la lista de transacciones al actualizar un análisis financiero.");
+        }
+
         analisis.setUsuario(usuario);
         analisis.setIngresoMensual(request.ingresoMensual());
         analisis.setNivelEndeudamiento(request.nivelEndeudamiento());
@@ -141,7 +171,7 @@ public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService 
         analisis.setClasificacionTransaccion(null);
         analisis.getRecomendaciones().clear();
 
-        poblar(analisis, request);
+        poblar(analisis, request, request.transacciones(), true);
 
         return toDetalleResponse(analisisRepository.save(analisis));
     }
@@ -166,23 +196,26 @@ public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService 
                 });
     }
 
-    private void poblar(AnalisisFinanciero analisis, AnalisisFinancieroRequest request) {
+    private void poblar(AnalisisFinanciero analisis, AnalisisFinancieroRequest request,
+                        List<TransaccionAnalisisRequest> transacciones, boolean persistir) {
         Usuario usuario = analisis.getUsuario();
 
         MlAnalisisFinancieroRequest mlRequest = new MlAnalisisFinancieroRequest(
                 request.ingresoMensual(),
                 request.nivelEndeudamiento(),
                 request.frecuenciaAhorro(),
-                request.transacciones());
+                transacciones);
 
         mlApiClient.analizarFinanciero(mlRequest)
                 .filter(respuesta -> respuesta.getPerfilFinanciero() != null)
                 .ifPresentOrElse(
                         respuesta -> poblarDesdeModelo(analisis, respuesta),
-                        () -> poblarPorRegla(analisis, request));
+                        () -> poblarPorRegla(analisis, request, transacciones));
 
-        // Persistir transacciones recibidas por trazabilidad
-        persistirTransacciones(usuario, request.transacciones());
+        // Persistir transacciones recibidas por trazabilidad (solo en modo simulación explícita)
+        if (persistir) {
+            persistirTransacciones(usuario, transacciones);
+        }
     }
 
     /**
@@ -234,19 +267,20 @@ public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService 
      * de clasificacion por reglas, perfil derivado de la probabilidad y
      * recomendaciones genericas (comportamiento previo a la integracion).
      */
-    private void poblarPorRegla(AnalisisFinanciero analisis, AnalisisFinancieroRequest request) {
+    private void poblarPorRegla(AnalisisFinanciero analisis, AnalisisFinancieroRequest request,
+                                List<TransaccionAnalisisRequest> transacciones) {
         Map<Integer, BigDecimal> porCategoria = new LinkedHashMap<>();
         BigDecimal sumaProbabilidades = BigDecimal.ZERO;
 
-        List<String> descripciones = request.transacciones().stream()
+        List<String> descripciones = transacciones.stream()
                 .map(TransaccionAnalisisRequest::descripcion)
                 .toList();
         Map<String, TransaccionResponseDTO> clasificadas =
                 clasificacionService.clasificarConProbabilidadLote(descripciones);
 
-        int totalTransacciones = request.transacciones().size();
+        int totalTransacciones = transacciones.size();
 
-        for (TransaccionAnalisisRequest tx : request.transacciones()) {
+        for (TransaccionAnalisisRequest tx : transacciones) {
             TransaccionResponseDTO clasificacion = clasificadas.get(tx.descripcion());
             int idCategoria = clasificacion.getIdCategoria();
             porCategoria.merge(idCategoria, tx.monto(), BigDecimal::add);

@@ -118,12 +118,14 @@ public class TransaccionServiceImpl implements TransaccionService {
         Usuario usuario = usuarioRepository.findById(dto.getUsuarioId())
                 .orElseThrow(() -> new ResourceNotFoundException("El usuario especificado no existe."));
 
+        LocalDate fecha = dto.getFecha() != null ? dto.getFecha() : LocalDate.now();
+
         return Transaccion.builder()
                 .usuario(usuario)
                 .tipoTransaccion(resolverTipoTransaccion(dto))
                 .descripcion(dto.getDescripcion())
                 .monto(dto.getMonto())
-                .fecha(LocalDate.now())
+                .fecha(fecha)
                 .build();
     }
 
