@@ -165,10 +165,6 @@ public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService 
         analisis.setAnio(request.anio());
         analisis.setFechaGeneracion(LocalDateTime.now());
 
-        if (analisis.getClasificacionTransaccion() != null) {
-            analisis.getClasificacionTransaccion().getResumenesGasto().clear();
-        }
-        analisis.setClasificacionTransaccion(null);
         analisis.getRecomendaciones().clear();
 
         poblar(analisis, request, request.transacciones(), true);
@@ -219,6 +215,34 @@ public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService 
     }
 
     /**
+     * Devuelve la {@code ClasificacionTransaccion} existente del análisis para
+     * reutilizarla (evitando insertar una fila duplicada que viola la
+     * restricción única {@code uq_clasificacion_analisis}) o la crea si no
+     * existe. Siempre reinicia la lista de resúmenes de gasto.
+     */
+    private ClasificacionTransaccion obtenerOCrearClasificacion(AnalisisFinanciero analisis) {
+        ClasificacionTransaccion clasificacion = analisis.getClasificacionTransaccion();
+        if (clasificacion == null) {
+            clasificacion = new ClasificacionTransaccion();
+            clasificacion.setAnalisisFinanciero(analisis);
+            analisis.setClasificacionTransaccion(clasificacion);
+        }
+        // Eliminacion explicita con flush: Hibernate inserta los nuevos resumenes
+        // ANTES de borrar los viejos, chocando contra uq_resumen_clasificacion_categoria.
+        // Borramos y forzamos flush para que el DELETE llegue a BD antes de los INSERT.
+        if (clasificacion.getId() != null) {
+            List<ResumenGasto> existentes = resumenRepository
+                    .findByClasificacionTransaccionId(clasificacion.getId());
+            if (!existentes.isEmpty()) {
+                resumenRepository.deleteAll(existentes);
+                resumenRepository.flush();
+            }
+        }
+        clasificacion.getResumenesGasto().clear();
+        return clasificacion;
+    }
+
+    /**
      * Rellena la entidad a partir del resultado del modelo de data-science.
      */
     private void poblarDesdeModelo(AnalisisFinanciero analisis, MlAnalisisFinancieroResponse respuesta) {
@@ -226,11 +250,8 @@ public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService 
                 ? BigDecimal.ZERO
                 : respuesta.getProbabilidad().setScale(3, RoundingMode.HALF_UP);
 
-        ClasificacionTransaccion clasificacion = new ClasificacionTransaccion();
-        clasificacion.setAnalisisFinanciero(analisis);
+        ClasificacionTransaccion clasificacion = obtenerOCrearClasificacion(analisis);
         clasificacion.setProbabilidad(probabilidad);
-        clasificacion.setResumenesGasto(new ArrayList<>());
-        analisis.setClasificacionTransaccion(clasificacion);
 
         if (respuesta.getResumenGastos() != null) {
             respuesta.getResumenGastos().forEach((slug, monto) -> {
@@ -259,7 +280,8 @@ public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService 
                         .descripcion(texto)
                         .build())
                 .toList();
-        analisis.setRecomendaciones(recomendaciones);
+        analisis.getRecomendaciones().clear();
+        analisis.getRecomendaciones().addAll(recomendaciones);
     }
 
     /**
@@ -291,11 +313,8 @@ public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService 
                 ? BigDecimal.ZERO
                 : sumaProbabilidades.divide(BigDecimal.valueOf(totalTransacciones), 3, RoundingMode.HALF_UP);
 
-        ClasificacionTransaccion clasificacion = new ClasificacionTransaccion();
-        clasificacion.setAnalisisFinanciero(analisis);
+        ClasificacionTransaccion clasificacion = obtenerOCrearClasificacion(analisis);
         clasificacion.setProbabilidad(probabilidad);
-        clasificacion.setResumenesGasto(new ArrayList<>());
-        analisis.setClasificacionTransaccion(clasificacion);
 
         for (Map.Entry<Integer, BigDecimal> entry : porCategoria.entrySet()) {
             CategoriaGasto categoria = categoriaGastoRepository.findById(entry.getKey())
@@ -317,7 +336,8 @@ public class AnalisisFinancieroServiceImpl implements AnalisisFinancieroService 
                         .descripcion(texto)
                         .build())
                 .collect(Collectors.toCollection(ArrayList::new));
-        analisis.setRecomendaciones(recomendaciones);
+        analisis.getRecomendaciones().clear();
+        analisis.getRecomendaciones().addAll(recomendaciones);
     }
 
     /**
